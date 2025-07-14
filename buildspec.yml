@@ -24,7 +24,7 @@ phases:
         done
       - echo Building Docker image...
       - docker build -t spring-demo:$IMAGE_TAG .
-      - docker tag spring-demo-ecr:$IMAGE_TAG $REPO_URI:$IMAGE_TAG
+      - docker tag spring-demo:$IMAGE_TAG $REPO_URI:$IMAGE_TAG
 
   post_build:
     commands:
