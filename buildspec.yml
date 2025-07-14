@@ -1,64 +1,48 @@
-version: 0.2
+[1:20 p.m., 2025-07-14] Mithra Lokeshkumar: version: 0.2
 
 phases:
   install:
-    commands:
-      - echo Setting up Maven settings...
-      - mkdir -p ~/.m2
-      - |
-        cat > ~/.m2/settings.xml <<EOF
-        <settings>
-          <mirrors>
-            <mirror>
-              <id>central</id>
-              <name>Maven Central Mirror</name>
-              <url>https://repo.maven.apache.org/maven2</url>
-              <mirrorOf>central</mirrorOf>
-            </mirror>
-          </mirrors>
-        </settings>
-        EOF
+    runtime-versions:
+      java: corretto17
 
   pre_build:
     commands:
-      - echo Installing dependencies...
-      - yum install -y jq maven
       - echo Logging in to Amazon ECR...
-      - ACCOUNT_ID=185187793433
-      - REGION=us-east-1
-      - REPO_NAME=spring-demo
       - IMAGE_TAG=v1.$CODEBUILD_BUILD_NUMBER
-      - aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
+      - REPO_URI=185187793433.dkr.ecr.us-east-1.amazonaws.com/spring-demo
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REPO_URI
 
   build:
     commands:
-      - echo Building the JAR file using Maven...
+      - echo Building the JAR file...
       - |
-        for i in {1..5}; do
-          mvn clean install && break || { echo "Maven build failed. Retrying in 15 seconds..."; sleep 15; }
+        for i in {1..3}; do
+          mvn clean install -Dmaven.wagon.http.retryHandler.count=3 && break || {
+            echo "⚠️ Maven build failed (attempt $i)... retrying in 10 seconds"
+            sleep 10
+          }
         done
-      - echo Checking if JAR was created...
-      - ls -l target/
-      - test -f target/*.jar || { echo "ERROR: No JAR file found in target/. Failing build."; exit 1; }
       - echo Building Docker image...
-      - docker build -t ${REPO_NAME}:${IMAGE_TAG} .
-      - docker tag ${REPO_NAME}:${IMAGE_TAG} ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}
+      - docker build -t spring-demo:$IMAGE_TAG .
+      - docker tag spring-demo-ecr:$IMAGE_TAG $REPO_URI:$IMAGE_TAG
 
   post_build:
     commands:
       - echo Pushing Docker image to Amazon ECR...
-      - docker push ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}
-      - echo Creating Kubernetes deployment files...
+      - docker push $REPO_URI:$IMAGE_TAG
+      - echo Creating deployment manifests...
       - mkdir -p k8s-out
-      - sed "s|IMAGE_PLACEHOLDER|${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}|g" k8s/deployment.yaml > k8s-out/deployment.yaml
+      - sed "s|IMAGE_PLACEHOLDER|$REPO_URI:$IMAGE_TAG|g" k8s/deployment.yaml > k8s-out/deployment.yaml
       - cp k8s/service.yaml k8s-out/service.yaml
-      - echo Listing final output files...
-      - ls -R k8s-out
+      - echo "✅ Files in k8s-out directory:"
+      - ls -la k8s-out
+      - echo "🔍 deployment.yaml content:"
+      - cat k8s-out/deployment.yaml
 
 artifacts:
-  base-directory: k8s-out
+  base-directory: .
   files:
-    - deployment.yaml
-    - service.yaml
-
+    - k8s-out/deployment.yaml
+    - k8s-out/service.yaml
+  discard-paths: no
 
