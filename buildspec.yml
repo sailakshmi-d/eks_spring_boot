@@ -42,7 +42,7 @@ phases:
 artifacts:
   base-directory: .
   files:
-    - k8s-out/deployment.yaml
-    - k8s-out/service.yaml
+    - deployment.yaml
+    - service.yaml
   discard-paths: no
 
