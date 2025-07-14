@@ -32,11 +32,14 @@ phases:
 
   build:
     commands:
-      - echo Building the JAR file...
+      - echo Building the JAR file using Maven...
       - |
         for i in {1..5}; do
           mvn clean install && break || { echo "Maven build failed. Retrying in 15 seconds..."; sleep 15; }
         done
+      - echo Checking if JAR was created...
+      - ls -l target/
+      - test -f target/*.jar || { echo "ERROR: No JAR file found in target/. Failing build."; exit 1; }
       - echo Building Docker image...
       - docker build -t ${REPO_NAME}:${IMAGE_TAG} .
       - docker tag ${REPO_NAME}:${IMAGE_TAG} ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}
@@ -45,15 +48,17 @@ phases:
     commands:
       - echo Pushing Docker image to Amazon ECR...
       - docker push ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}
-      - echo Creating final deployment files...
+      - echo Creating Kubernetes deployment files...
       - mkdir -p k8s-out
       - sed "s|IMAGE_PLACEHOLDER|${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}|g" k8s/deployment.yaml > k8s-out/deployment.yaml
       - cp k8s/service.yaml k8s-out/service.yaml
-      - ls -R
+      - echo Listing final output files...
+      - ls -R k8s-out
 
 artifacts:
   base-directory: k8s-out
   files:
     - deployment.yaml
     - service.yaml
+
 
