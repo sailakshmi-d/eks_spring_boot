@@ -1,6 +1,6 @@
-#  Containerized Microservices with AWS EKS
+#  EKS CodePipeline Deployment
 
-This project demonstrates how to build, deploy, and manage containerized microservices using AWS services such as EKS (Elastic Kubernetes Service), ECR, CodePipeline, and ALB.
+This project demonstrates how to build, deploy, and manage containerized application using AWS services such as EKS (Elastic Kubernetes Service), ECR, CodePipeline, and ALB.
 
 
 ---
